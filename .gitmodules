@@ -1,0 +1,6 @@
+[submodule "ffpipe"]
+	path = ffpipe
+	url = http://gitlab.qiyi.domain/yinghao/ffpipe.git
+[submodule "video_process_lib"]
+	path = video_process_lib
+	url = ssh://git@gitlab.qiyi.domain:10022/yinghao/video_process_lib.git

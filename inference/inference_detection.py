@@ -23,8 +23,8 @@ def main(args):
 # python inference_detection.py --img_path /mnt/ec-data2/ivs/1080p/zyh/testset/sr/yuexia_src/yuexia3_madong_face.png --save_path /data/yh/FACE_2024/facexlib/result/yuexia3_madong_face_detect.png
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--img_path', type=str, default='assets/test.jpg')
-    parser.add_argument('--save_path', type=str, default='test_detection.png')
+    parser.add_argument('--img_path', type=str, default='/mnt/ec-data2/ivs/1080p/zyh/testset/sr/yuexia_src/yuexia3_madong_face.png')
+    parser.add_argument('--save_path', type=str, default='/data/yh/FACE_2024/facexlib/result/yuexia3_madong_face_detect_debug.png')
     parser.add_argument(
         '--model_name', type=str, default='retinaface_resnet50', help='retinaface_resnet50 | retinaface_mobile0.25')
     parser.add_argument('--half', action='store_true')
