@@ -1,9 +1,11 @@
 import argparse
 import cv2
+import os
+import sys
 import numpy as np
 import torch.nn.functional as F
 from torchvision.transforms.functional import normalize
-
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from facexlib.matting import init_matting_model
 from facexlib.utils import img2tensor
 
@@ -55,7 +57,7 @@ def main(args):
     foreground = img * matte + np.full(img.shape, 1) * (1 - matte)
     cv2.imwrite(args.save_path.replace('.png', '_fg.png'), foreground * 255)
 
-
+# python inference_matting.py --img_path /mnt/ec-data2/ivs/1080p/zyh/testset/sr/yuexia_src/yuexia3_madong_face.png --save_path /data/yh/FACE_2024/facexlib/result/yuexia3_madong_face_mat.png
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--img_path', type=str, default='assets/test.jpg')

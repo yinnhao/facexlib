@@ -1,7 +1,10 @@
 import argparse
 import cv2
+import os
+import sys
 import torch
 
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from facexlib.detection import init_detection_model
 from facexlib.visualization import visualize_detection
 
@@ -17,7 +20,7 @@ def main(args):
         print(bboxes)
         visualize_detection(img, bboxes, args.save_path)
 
-
+# python inference_detection.py --img_path /mnt/ec-data2/ivs/1080p/zyh/testset/sr/yuexia_src/yuexia3_madong_face.png --save_path /data/yh/FACE_2024/facexlib/result/yuexia3_madong_face_detect.png
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--img_path', type=str, default='assets/test.jpg')

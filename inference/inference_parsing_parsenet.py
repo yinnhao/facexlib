@@ -2,9 +2,10 @@ import argparse
 import cv2
 import numpy as np
 import os
+import sys
 import torch
 from torchvision.transforms.functional import normalize
-
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from facexlib.parsing import init_parsing_model
 from facexlib.utils.misc import img2tensor
 
@@ -63,7 +64,7 @@ def main(img_path, output):
         save_anno_path=os.path.join(output, f'{img_basename}.png'),
         save_vis_path=os.path.join(output, f'{img_basename}_vis.png'))
 
-
+# python inference_parsing_parsenet.py --input /data/yh/FACE_2024/facexlib/result/yuexia3_madong_face_cvwarp_00.png --output /data/yh/FACE_2024/facexlib/result
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 

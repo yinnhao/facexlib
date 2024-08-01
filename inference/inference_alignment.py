@@ -1,7 +1,10 @@
 import argparse
 import cv2
+import os
+import sys
 import torch
 
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from facexlib.alignment import init_alignment_model, landmark_98_to_68
 from facexlib.visualization import visualize_alignment
 
@@ -17,7 +20,7 @@ def main(args):
             landmarks = landmark_98_to_68(landmarks)
         visualize_alignment(img, [landmarks], args.save_path)
 
-
+# python inference_alignment.py --img_path /data/yh/FACE_2024/facexlib/result/yuexia3_madong_face_cvwarp_00.png --save_path /data/yh/FACE_2024/facexlib/result/yuexia3_madong_face_align.png
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--img_path', type=str, default='assets/test2.jpg')

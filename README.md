@@ -61,3 +61,19 @@ This project is released under the MIT license. <br>
 ## :e-mail: Contact
 
 If you have any question, open an issue or email `xintao.wang@outlook.com`.
+
+
+### 推理命令行
+```shell
+# 1. detection
+python inference_detection.py --img_path /mnt/ec-data2/ivs/1080p/zyh/testset/sr/yuexia_src/yuexia3_madong_face.png --save_path /data/yh/FACE_2024/facexlib/result/yuexia3_madong_face_detect.png
+# 2. matting
+python inference_matting.py --img_path /mnt/ec-data2/ivs/1080p/zyh/testset/sr/yuexia_src/yuexia3_madong_face.png --save_path /data/yh/FACE_2024/facexlib/result/yuexia3_madong_face_mat.png
+# 3. alignment（关键点） 需要人脸小图
+python inference_alignment.py --img_path /data/yh/FACE_2024/facexlib/result/yuexia3_madong_face_cvwarp_00.png --save_path /data/yh/FACE_2024/facexlib/result/yuexia3_madong_face_align.png
+# 4. parsing （人脸解析分割成更精细的部分） 需要人脸小图
+# bisenet: 效果比较好
+python inference_parsing.py --input /data/yh/FACE_2024/facexlib/result/yuexia3_madong_face_cvwarp_00.png --output /data/yh/FACE_2024/facexlib/result
+# parsenet: 效果不好
+python inference_parsing_parsenet.py --input /data/yh/FACE_2024/facexlib/result/yuexia3_madong_face_cvwarp_00.png --output /data/yh/FACE_2024/facexlib/result
+```
