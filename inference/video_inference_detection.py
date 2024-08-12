@@ -40,7 +40,7 @@ class InferDET(video_infer):
         # y[:] = np.round(y * 255)
         y = x[:,:,::-1].copy()
         with torch.no_grad():
-            bboxes = self.det_net.detect_faces(y, 0.97)
+            bboxes = self.det_net.detect_faces(y, 0.97, use_origin_size=False)
         print(bboxes)
         y = visualize_detection(y.astype(np.uint8), bboxes, return_img=True)
         y = cv2.cvtColor(y, cv2.COLOR_BGR2RGB)
@@ -58,8 +58,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Your program description')
 
     # 添加命令行参数
-    parser.add_argument('--file_name', type=str, help='Input file name')
-    parser.add_argument('--save_name', type=str, help='Output file name')
+    parser.add_argument('--video_path', type=str, help='Input file name')
+    parser.add_argument('--save_path', type=str, help='Output file name')
     parser.add_argument('--det_model', type=str, default='retinaface_resnet50', help='detection model name')
     parser.add_argument('--qp', type=int, default=16, help='qp value')
 
@@ -67,15 +67,15 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     # 使用命令行参数
-    file_name = args.file_name
-    save_name = args.save_name
+    video_path = args.video_path
+    save_path = args.save_path
     det_model_name = args.det_model
     qp = args.qp
     # encode_params = ("libx264", "x264opts", "qp=12:bframes=3")
     # encode_params = ("libx265", "x265-params", "qp={}".format(str(qp)))
     encode_params = ("libx264", "x264opts", "qp={}".format(str(qp)))
 
-    infer = InferDET(file_name, save_name, encode_params, in_pix_fmt="rgb24", out_pix_fmt="rgb24", 
+    infer = InferDET(video_path, save_path, encode_params, in_pix_fmt="rgb24", out_pix_fmt="rgb24", 
                            decode_out_pix_fmt="yuv420p", model=det_model_name, scale=1)
     infer.infer()
     

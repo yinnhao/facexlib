@@ -81,7 +81,8 @@ class RetinaFace(nn.Module):
         self.model_name = f'retinaface_{network_name}'
         self.cfg = cfg
         self.phase = phase
-        self.target_size, self.max_size = 1600, 2150
+        self.target_size, self.max_size = 512, 1024
+        # self.target_size, self.max_size = 1600, 2150
         self.resize, self.scale, self.scale1 = 1., None, None
         self.mean_tensor = torch.tensor([[[[104.]], [[117.]], [[123.]]]], device=self.device)
         self.reference = get_reference_facial_points(default_square=True)
@@ -118,23 +119,26 @@ class RetinaFace(nn.Module):
             self.half()
 
     def forward(self, inputs):
+        # inputs: 1, 3, 1080, 1920
         out = self.body(inputs)
-
+        # out[1]: 1, 512, 135, 240 (输入分辨率缩小8倍)
+        # out[2]: 1, 1024, 68, 120 （输入分辨率缩小16倍）
+        # out[3]: 1, 2048, 34, 60 (输入分辨率缩小32倍)
         if self.backbone == 'mobilenet0.25' or self.backbone == 'Resnet50':
             out = list(out.values())
         # FPN
         fpn = self.fpn(out)
 
         # SSH
-        feature1 = self.ssh1(fpn[0])
-        feature2 = self.ssh2(fpn[1])
-        feature3 = self.ssh3(fpn[2])
+        feature1 = self.ssh1(fpn[0]) # torch.Size([1, 256, 135, 240])
+        feature2 = self.ssh2(fpn[1]) # torch.Size([1, 256, 68, 120])
+        feature3 = self.ssh3(fpn[2]) # torch.Size([1, 256, 34, 60])
         features = [feature1, feature2, feature3]
-
-        bbox_regressions = torch.cat([self.BboxHead[i](feature) for i, feature in enumerate(features)], dim=1)
-        classifications = torch.cat([self.ClassHead[i](feature) for i, feature in enumerate(features)], dim=1)
-        tmp = [self.LandmarkHead[i](feature) for i, feature in enumerate(features)]
-        ldm_regressions = (torch.cat(tmp, dim=1))
+        # 85200 = 135 * 240 * 2 + 68 * 120 * 2 + 34 * 60 * 2
+        bbox_regressions = torch.cat([self.BboxHead[i](feature) for i, feature in enumerate(features)], dim=1) # 1, 85200, 4
+        classifications = torch.cat([self.ClassHead[i](feature) for i, feature in enumerate(features)], dim=1) # 1, 85200, 2
+        tmp = [self.LandmarkHead[i](feature) for i, feature in enumerate(features)] 
+        ldm_regressions = (torch.cat(tmp, dim=1)) # 1, 85200, 10
 
         if self.phase == 'train':
             output = (bbox_regressions, classifications, ldm_regressions)
@@ -157,7 +161,7 @@ class RetinaFace(nn.Module):
 
         # get priorbox
         priorbox = PriorBox(self.cfg, image_size=inputs.shape[2:])
-        priors = priorbox.forward().to(self.device)
+        priors = priorbox.forward().to(self.device) # 85200, 4
 
         return loc, conf, landmarks, priors
 

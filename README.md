@@ -77,3 +77,9 @@ python inference_parsing.py --input /data/yh/FACE_2024/facexlib/result/yuexia3_m
 # parsenet: 效果不好
 python inference_parsing_parsenet.py --input /data/yh/FACE_2024/facexlib/result/yuexia3_madong_face_cvwarp_00.png --output /data/yh/FACE_2024/facexlib/result
 ```
+
+### 视频推理命令行
+```shell
+# 1. detection
+python video_inference_detection.py --video_path SDR0357_709_1s.mp4 --save_path SDR0357_709_1s_res.mp4
+```

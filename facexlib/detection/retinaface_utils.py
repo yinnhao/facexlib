@@ -13,6 +13,7 @@ class PriorBox(object):
         self.steps = cfg['steps']
         self.clip = cfg['clip']
         self.image_size = image_size
+        # 特征金字塔每层的shape
         self.feature_maps = [[ceil(self.image_size[0] / step), ceil(self.image_size[1] / step)] for step in self.steps]
         self.name = 's'
 

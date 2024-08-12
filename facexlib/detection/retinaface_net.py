@@ -49,17 +49,17 @@ class SSH(nn.Module):
         self.conv7X7_2 = conv_bn(out_channel // 4, out_channel // 4, stride=1, leaky=leaky)
         self.conv7x7_3 = conv_bn_no_relu(out_channel // 4, out_channel // 4, stride=1)
 
-    def forward(self, input):
-        conv3X3 = self.conv3X3(input)
+    def forward(self, input):# input: torch.Size([1, 256, 135, 240])
+        conv3X3 = self.conv3X3(input) # conv3X3: torch.Size([1, 128, 135, 240])
 
-        conv5X5_1 = self.conv5X5_1(input)
-        conv5X5 = self.conv5X5_2(conv5X5_1)
+        conv5X5_1 = self.conv5X5_1(input) 
+        conv5X5 = self.conv5X5_2(conv5X5_1) # conv5X5: torch.Size([1, 64, 135, 240])
 
         conv7X7_2 = self.conv7X7_2(conv5X5_1)
-        conv7X7 = self.conv7x7_3(conv7X7_2)
+        conv7X7 = self.conv7x7_3(conv7X7_2) # conv7X7: torch.Size([1, 64, 135, 240])
 
-        out = torch.cat([conv3X3, conv5X5, conv7X7], dim=1)
-        out = F.relu(out)
+        out = torch.cat([conv3X3, conv5X5, conv7X7], dim=1) 
+        out = F.relu(out) # 
         return out
 
 
@@ -80,10 +80,16 @@ class FPN(nn.Module):
     def forward(self, input):
         # names = list(input.keys())
         # input = list(input.values())
-
+        # input[0]: 1, 512, 135, 240 
+        # input[1]: 1, 1024, 68, 120 
+        # input[2]: 1, 2048, 34, 60 
+        # 将通道维度进行统一
         output1 = self.output1(input[0])
         output2 = self.output2(input[1])
         output3 = self.output3(input[2])
+        # output1: torch.Size([1, 256, 135, 240])
+        # output2: torch.Size([1, 256, 68, 120])
+        # output3: torch.Size([1, 256, 34, 60])
 
         up3 = F.interpolate(output3, size=[output2.size(2), output2.size(3)], mode='nearest')
         output2 = output2 + up3
