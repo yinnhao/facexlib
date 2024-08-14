@@ -11,11 +11,13 @@ from facexlib.visualization import visualize_detection
 
 def main(args):
     # initialize model
-    det_net = init_detection_model(args.model_name, half=args.half)
+    target_size = args.target_size
+    max_size = args.max_size
+    det_net = init_detection_model(args.model_name, half=args.half, target_size=target_size, max_size=max_size)
 
     img = cv2.imread(args.img_path)
     with torch.no_grad():
-        bboxes = det_net.detect_faces(img, 0.5, use_origin_size=False)
+        bboxes = det_net.detect_faces(img, 0.5, use_origin_size=args.use_origin_size)
         # x0, y0, x1, y1, confidence_score, five points (x, y)
         print(bboxes)
         if args.output_txt:
@@ -36,6 +38,9 @@ if __name__ == '__main__':
         '--model_name', type=str, default='retinaface_resnet50', help='retinaface_resnet50 | retinaface_mobile0.25')
     parser.add_argument('--half', action='store_true')
     parser.add_argument('--output_txt', action='store_true')
+    parser.add_argument('--target_size', type=int, default=1600)
+    parser.add_argument('--max_size', type=int, default=2150)
+    parser.add_argument('--use_origin_size', action='store_true')
     args = parser.parse_args()
 
     main(args)

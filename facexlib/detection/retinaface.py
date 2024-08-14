@@ -70,7 +70,7 @@ def generate_config(network_name):
 
 class RetinaFace(nn.Module):
 
-    def __init__(self, network_name='resnet50', half=False, phase='test', device=None):
+    def __init__(self, network_name='resnet50', half=False, phase='test', device=None, target_size=1600, max_size=2150):
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu') if device is None else device
 
         super(RetinaFace, self).__init__()
@@ -81,7 +81,7 @@ class RetinaFace(nn.Module):
         self.model_name = f'retinaface_{network_name}'
         self.cfg = cfg
         self.phase = phase
-        self.target_size, self.max_size = 512, 1024
+        self.target_size, self.max_size = target_size, max_size
         # self.target_size, self.max_size = 1600, 2150
         self.resize, self.scale, self.scale1 = 1., None, None
         self.mean_tensor = torch.tensor([[[[104.]], [[117.]], [[123.]]]], device=self.device)

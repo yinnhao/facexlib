@@ -141,3 +141,5 @@ dmypy.json
 *.flv
 *.wmv
 *.mkv
+
+./result
