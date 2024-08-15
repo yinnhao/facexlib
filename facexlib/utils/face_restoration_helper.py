@@ -58,7 +58,10 @@ class FaceRestoreHelper(object):
                  pad_blur=False,
                  use_parse=False,
                  device=None,
-                 model_rootpath=None):
+                 model_rootpath=None,
+                 parse_model='parsenet',
+                 target_size=1600, 
+                 max_size=2150):
         self.template_3points = template_3points  # improve robustness
         self.upscale_factor = upscale_factor
         # the cropped face ratio based on the square face
@@ -89,6 +92,7 @@ class FaceRestoreHelper(object):
         self.cropped_faces = []
         self.restored_faces = []
         self.pad_input_imgs = []
+        self.face_masks = []
 
         if device is None:
             self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -96,11 +100,11 @@ class FaceRestoreHelper(object):
             self.device = device
 
         # init face detection model
-        self.face_det = init_detection_model(det_model, half=False, device=self.device, model_rootpath=model_rootpath)
+        self.face_det = init_detection_model(det_model, half=False, device=self.device, model_rootpath=model_rootpath, target_size=target_size, max_size=max_size)
 
         # init face parsing model
         self.use_parse = use_parse
-        self.face_parse = init_parsing_model(model_name='parsenet', device=self.device, model_rootpath=model_rootpath)
+        self.face_parse = init_parsing_model(model_name=parse_model, device=self.device, model_rootpath=model_rootpath)
 
     def set_upscale_factor(self, upscale_factor):
         self.upscale_factor = upscale_factor
@@ -326,7 +330,9 @@ class FaceRestoreHelper(object):
 
                 mask = cv2.resize(mask, restored_face.shape[:2])
                 mask = cv2.warpAffine(mask, inverse_affine, (w_up, h_up), flags=3)
+                cv2.imwrite('/data/yh/FACE_2024/facexlib/result/mask.png', (mask * 255).astype(np.uint8))
                 inv_soft_mask = mask[:, :, None]
+                self.face_masks.append(inv_soft_mask)
                 pasted_face = inv_restored
 
             else:  # use square parse maps
