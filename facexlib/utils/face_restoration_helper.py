@@ -282,7 +282,21 @@ class FaceRestoreHelper(object):
     def add_restored_face(self, face):
         self.restored_faces.append(face)
 
-    def paste_faces_to_input_image(self, save_path=None, upsample_img=None):
+    def paste_masks_to_input_image(self):
+        input_img = self.input_img
+        vis_mask = input_img.copy()
+        for mask in self.face_masks:
+            mask = np.round(mask * 255).astype(np.uint8)
+            index = np.where(mask == 255)
+            vis_mask[index[0], index[1], :] = [255, 144, 30]
+
+        vis_img = cv2.addWeighted(input_img, 0.4, vis_mask, 0.6, 0)
+        # cv2.imwrite('/data/yh/FACE_2024/facexlib/result/vis_mask.png', vis_img)
+        return vis_img
+
+
+
+    def paste_faces_to_input_image(self, save_path=None, upsample_img=None, soft_mask=True):
         h, w, _ = self.input_img.shape
         h_up, w_up = int(h * self.upscale_factor), int(w * self.upscale_factor)
 
@@ -317,9 +331,10 @@ class FaceRestoreHelper(object):
                 MASK_COLORMAP = [0, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 0, 255, 0, 0, 0]
                 for idx, color in enumerate(MASK_COLORMAP):
                     mask[out == idx] = color
-                #  blur the mask
-                mask = cv2.GaussianBlur(mask, (101, 101), 11)
-                mask = cv2.GaussianBlur(mask, (101, 101), 11)
+                if soft_mask:
+                    #  blur the mask
+                    mask = cv2.GaussianBlur(mask, (101, 101), 11)
+                    mask = cv2.GaussianBlur(mask, (101, 101), 11)
                 # remove the black borders
                 thres = 10
                 mask[:thres, :] = 0

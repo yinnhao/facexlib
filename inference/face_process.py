@@ -77,13 +77,15 @@ class FaceEnhancer():
             restored_face = restored_face.astype('uint8')
             cv2.imwrite('/data/yh/FACE_2024/facexlib/result/face_crop_restored.png', restored_face)
             self.face_helper.add_restored_face(restored_face)
-
+        
         if not has_aligned and paste_back:
             bg_img = img
 
             self.face_helper.get_inverse_affine(None)
             # paste each restored face to the input image
-            restored_img = self.face_helper.paste_faces_to_input_image(upsample_img=bg_img)
+            restored_img = self.face_helper.paste_faces_to_input_image(upsample_img=bg_img, soft_mask=False)
+            vis_img = self.face_helper.paste_masks_to_input_image()
+            cv2.imwrite('/data/yh/FACE_2024/facexlib/result/face_parse.png', vis_img)
             return self.face_helper.cropped_faces, self.face_helper.restored_faces, restored_img
         else:
             return self.face_helper.cropped_faces, self.face_helper.restored_faces, None
