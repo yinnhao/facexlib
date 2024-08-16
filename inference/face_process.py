@@ -19,7 +19,7 @@ class FaceEnhancer():
     """
     """
 
-    def __init__(self, upscale=1, device=None):
+    def __init__(self, upscale=1, device=None, target_size=512, max_size=1024, use_origin_size=False):
         self.upscale = upscale
         
 
@@ -37,8 +37,9 @@ class FaceEnhancer():
             device=self.device,
             model_rootpath=f'{ROOT_DIR}/facexlib/weights',
             parse_model='bisenet',
-            target_size=512, 
-            max_size=1024)
+            target_size=target_size, 
+            max_size=max_size, 
+            use_origin_size=use_origin_size)
 
         
         
@@ -85,8 +86,8 @@ class FaceEnhancer():
             # paste each restored face to the input image
             restored_img = self.face_helper.paste_faces_to_input_image(upsample_img=bg_img, soft_mask=False)
             vis_img = self.face_helper.paste_masks_to_input_image()
-            cv2.imwrite('/data/yh/FACE_2024/facexlib/result/face_parse.png', vis_img)
-            return self.face_helper.cropped_faces, self.face_helper.restored_faces, restored_img
+            # cv2.imwrite('/data/yh/FACE_2024/facexlib/result/face_parse.png', vis_img)
+            return self.face_helper.cropped_faces, self.face_helper.restored_faces, restored_img, vis_img
         else:
             return self.face_helper.cropped_faces, self.face_helper.restored_faces, None
 
@@ -95,17 +96,18 @@ def main(args):
     # initialize model
     target_size = args.target_size
     max_size = args.max_size
+    use_origin_size = args.use_origin_size
     # det_net = init_detection_model(args.model_name, half=args.half, target_size=target_size, max_size=max_size)
-    face_enhancer = FaceEnhancer()
+    face_enhancer = FaceEnhancer(target_size=target_size, max_size=max_size, use_origin_size=use_origin_size)
 
     img = cv2.imread(args.img_path)
-    _, _, output = face_enhancer.enhance(img, has_aligned=False, only_center_face=False, paste_back=True)
-    cv2.imwrite(args.save_path, output)
+    _, _, output, vis_img = face_enhancer.enhance(img, has_aligned=False, only_center_face=False, paste_back=True)
+    cv2.imwrite(args.save_path, vis_img)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--img_path', type=str, default='/mnt/ec-data2/ivs/1080p/zyh/testset/sr/yuexia_src/yuexia3_madong_face.png')
-    parser.add_argument('--save_path', type=str, default='/data/yh/FACE_2024/facexlib/result/yuexia3_madong_face_parse.png')
+    parser.add_argument('--img_path', type=str, default='/mnt/ec-data2/ivs/1080p/zyh/hdr_dirty_face/png/select/SDR2822_709-0227.png')
+    parser.add_argument('--save_path', type=str, default='/data/yh/FACE_2024/facexlib/result/SDR2822_709-0227_parsing.png')
     parser.add_argument(
         '--model_name', type=str, default='retinaface_resnet50', help='retinaface_resnet50 | retinaface_mobile0.25')
     parser.add_argument('--half', action='store_true')

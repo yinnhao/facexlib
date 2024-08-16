@@ -61,9 +61,11 @@ class FaceRestoreHelper(object):
                  model_rootpath=None,
                  parse_model='parsenet',
                  target_size=1600, 
-                 max_size=2150):
+                 max_size=2150,
+                 use_origin_size=False):
         self.template_3points = template_3points  # improve robustness
         self.upscale_factor = upscale_factor
+        self.use_origin_size = use_origin_size
         # the cropped face ratio based on the square face
         self.crop_ratio = crop_ratio  # (h, w)
         assert (self.crop_ratio[0] >= 1 and self.crop_ratio[1] >= 1), 'crop ration only supports >=1'
@@ -140,7 +142,7 @@ class FaceRestoreHelper(object):
             input_img = cv2.resize(self.input_img, (w, h), interpolation=cv2.INTER_LANCZOS4)
 
         with torch.no_grad():
-            bboxes = self.face_det.detect_faces(input_img, 0.97) * scale
+            bboxes = self.face_det.detect_faces(input_img, 0.97, use_origin_size=self.use_origin_size) * scale
         for bbox in bboxes:
             # remove faces with too small eye distance: side faces or too small faces
             eye_dist = np.linalg.norm([bbox[5] - bbox[7], bbox[6] - bbox[8]])
@@ -258,6 +260,7 @@ class FaceRestoreHelper(object):
                 input_img = self.pad_input_imgs[idx]
             else:
                 input_img = self.input_img
+            cv2.imwrite('/data/yh/FACE_2024/facexlib/result/input_img.png', input_img)
             cropped_face = cv2.warpAffine(
                 input_img, affine_matrix, self.face_size, borderMode=border_mode, borderValue=(135, 133, 132))  # gray
             self.cropped_faces.append(cropped_face)
@@ -336,13 +339,13 @@ class FaceRestoreHelper(object):
                     mask = cv2.GaussianBlur(mask, (101, 101), 11)
                     mask = cv2.GaussianBlur(mask, (101, 101), 11)
                 # remove the black borders
-                thres = 10
-                mask[:thres, :] = 0
-                mask[-thres:, :] = 0
-                mask[:, :thres] = 0
-                mask[:, -thres:] = 0
+                # thres = 10
+                # mask[:thres, :] = 0
+                # mask[-thres:, :] = 0
+                # mask[:, :thres] = 0
+                # mask[:, -thres:] = 0
                 mask = mask / 255.
-
+                cv2.imwrite('/data/yh/FACE_2024/facexlib/result/mask_small.png', (mask * 255).astype(np.uint8))
                 mask = cv2.resize(mask, restored_face.shape[:2])
                 mask = cv2.warpAffine(mask, inverse_affine, (w_up, h_up), flags=3)
                 cv2.imwrite('/data/yh/FACE_2024/facexlib/result/mask.png', (mask * 255).astype(np.uint8))
