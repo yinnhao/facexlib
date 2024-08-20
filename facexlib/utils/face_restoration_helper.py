@@ -95,6 +95,7 @@ class FaceRestoreHelper(object):
         self.restored_faces = []
         self.pad_input_imgs = []
         self.face_masks = []
+        self.det_faces_enlarge = []
 
         if device is None:
             self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -125,6 +126,121 @@ class FaceRestoreHelper(object):
             img = img[:, :, 0:3]
 
         self.input_img = img
+
+    def get_face_boxs(self,
+                      only_keep_largest=False,
+                      only_center_face=False,
+                      resize=None,
+                      blur_ratio=0.01,
+                      eye_dist_threshold=None):
+        if resize is None:
+            scale = 1
+            input_img = self.input_img
+        else:
+            h, w = self.input_img.shape[0:2]
+            scale = min(h, w) / resize
+            h, w = int(h / scale), int(w / scale)
+            input_img = cv2.resize(self.input_img, (w, h), interpolation=cv2.INTER_LANCZOS4)
+
+        with torch.no_grad():
+            bboxes = self.face_det.detect_faces(input_img, 0.97, use_origin_size=self.use_origin_size) * scale
+        for bbox in bboxes:
+            # remove faces with too small eye distance: side faces or too small faces
+            eye_dist = np.linalg.norm([bbox[5] - bbox[7], bbox[6] - bbox[8]])
+            if eye_dist_threshold is not None and (eye_dist < eye_dist_threshold):
+                continue
+            self.det_faces.append(bbox[0:5])
+        if len(self.det_faces) == 0:
+            return 0
+        if only_keep_largest:
+            h, w, _ = self.input_img.shape
+            self.det_faces, largest_idx = get_largest_face(self.det_faces, h, w)
+        elif only_center_face:
+            h, w, _ = self.input_img.shape
+            self.det_faces, center_idx = get_center_face(self.det_faces, h, w)
+        return len(self.det_faces)
+    
+    def get_crop_face(self):
+        input_img = self.input_img
+        h, w = input_img.shape[:2]
+        for box in self.det_faces_enlarge:
+            cropped_face = input_img[box[1]:box[3], box[0]:box[2], :]
+            # cv2.imwrite("/data/yh/FACE_2024/facexlib/result/face_crop.jpg", cropped_face)
+            self.cropped_faces.append(cropped_face)
+
+    def get_face_enlarge(self):
+        def expand_box(x0, y0, x1, y1, ratio1, ratio2):
+            # 计算box的中心点
+            center_x = (x0 + x1) / 2
+            center_y = (y0 + y1) / 2
+            
+            # 计算原来的宽度和高度
+            width = x1 - x0
+            height = y1 - y0
+            
+            # 计算新的宽度和高度
+            new_width = width * ratio1
+            new_height = height * ratio2
+            
+            # 计算新的box的左上和右下坐标
+            new_x0 = center_x - new_width / 2
+            new_y0 = center_y - new_height / 2
+            new_x1 = center_x + new_width / 2
+            new_y1 = center_y + new_height / 2
+            
+            return new_x0, new_y0, new_x1, new_y1
+
+
+        input_img = self.input_img
+        h, w = input_img.shape[:2]
+        for box in self.det_faces:
+            box = np.array(box)
+            box[0], box[1], box[2], box[3] = expand_box(box[0], box[1], box[2], box[3], 1.7, 1.3)
+            box[0] = max(box[0], 0)
+            box[1] = max(box[1], 0)
+            box[2] = min(box[2], w - 1)
+            box[3] = min(box[3], h - 1)
+            box = box.astype(int)
+            self.det_faces_enlarge.append(box)
+
+    def get_face_parsing(self, soft_mask=False):
+        input_img = self.input_img
+        h, w = input_img.shape[:2]
+        for face_id, cropped_face in enumerate(self.cropped_faces):
+                big_mask = np.zeros(input_img.shape[:2])
+                
+                face_input = cv2.resize(cropped_face, (512, 512), interpolation=cv2.INTER_LINEAR)
+                face_input = img2tensor(face_input.astype('float32') / 255., bgr2rgb=True, float32=True)
+                normalize(face_input, (0.5, 0.5, 0.5), (0.5, 0.5, 0.5), inplace=True)
+                face_input = torch.unsqueeze(face_input, 0).to(self.device)
+                with torch.no_grad():
+                    out = self.face_parse(face_input)[0]
+                out = out.argmax(dim=1).squeeze().cpu().numpy()
+
+                mask = np.zeros(out.shape)
+                MASK_COLORMAP = [0, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 0, 255, 0, 0, 0]
+                for idx, color in enumerate(MASK_COLORMAP):
+                    mask[out == idx] = color
+                if soft_mask:
+                    #  blur the mask
+                    mask = cv2.GaussianBlur(mask, (101, 101), 11)
+                    mask = cv2.GaussianBlur(mask, (101, 101), 11)
+                # remove the black borders
+                # thres = 10
+                # mask[:thres, :] = 0
+                # mask[-thres:, :] = 0
+                # mask[:, :thres] = 0
+                # mask[:, -thres:] = 0
+                mask = mask / 255.
+                # cv2.imwrite('/data/yh/FACE_2024/facexlib/result/mask_small.png', (mask * 255).astype(np.uint8))
+                mask = cv2.resize(mask, (cropped_face.shape[1], cropped_face.shape[0]))
+                # cv2.imwrite('/data/yh/FACE_2024/facexlib/result/mask.png', (mask * 255).astype(np.uint8))
+                box = self.det_faces_enlarge[face_id]
+                big_mask[int(box[1]):int(box[3]), int(box[0]):int(box[2])] = mask[:, :]
+                # inv_soft_mask = mask[:, :, None]
+                self.face_masks.append(big_mask)
+
+
 
     def get_face_landmarks_5(self,
                              only_keep_largest=False,
@@ -285,7 +401,7 @@ class FaceRestoreHelper(object):
     def add_restored_face(self, face):
         self.restored_faces.append(face)
 
-    def paste_masks_to_input_image(self):
+    def paste_masks_to_input_image(self, draw_box=False):
         input_img = self.input_img
         vis_mask = input_img.copy()
         for mask in self.face_masks:
@@ -294,10 +410,16 @@ class FaceRestoreHelper(object):
             vis_mask[index[0], index[1], :] = [255, 144, 30]
 
         vis_img = cv2.addWeighted(input_img, 0.4, vis_mask, 0.6, 0)
+        if draw_box:
+            for box in self.det_faces:
+                box = box.astype(int)
+                cv2.rectangle(vis_img, (box[0], box[1]), (box[2], box[3]), (0, 255, 0), 2)
+
+            for box in self.det_faces_enlarge:
+                box = box.astype(int)
+                cv2.rectangle(vis_img, (box[0], box[1]), (box[2], box[3]), (0, 0, 255), 2)
         # cv2.imwrite('/data/yh/FACE_2024/facexlib/result/vis_mask.png', vis_img)
         return vis_img
-
-
 
     def paste_faces_to_input_image(self, save_path=None, upsample_img=None, soft_mask=True):
         h, w, _ = self.input_img.shape
@@ -396,3 +518,6 @@ class FaceRestoreHelper(object):
         self.inverse_affine_matrices = []
         self.det_faces = []
         self.pad_input_imgs = []
+        self.det_faces_enlarge = []
+        self.face_masks = []
+        

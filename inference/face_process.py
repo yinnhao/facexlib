@@ -90,6 +90,17 @@ class FaceEnhancer():
             return self.face_helper.cropped_faces, self.face_helper.restored_faces, restored_img, vis_img
         else:
             return self.face_helper.cropped_faces, self.face_helper.restored_faces, None
+        
+    @torch.no_grad()
+    def get_face_parsing(self, img):
+        self.face_helper.clean_all()
+        self.face_helper.read_image(img)
+        self.face_helper.get_face_boxs(only_center_face=False, eye_dist_threshold=5)
+        self.face_helper.get_face_enlarge()
+        self.face_helper.get_crop_face()
+        self.face_helper.get_face_parsing()
+        vis_img = self.face_helper.paste_masks_to_input_image(draw_box=True)
+        return vis_img  
 
 
 def main(args):
@@ -101,13 +112,14 @@ def main(args):
     face_enhancer = FaceEnhancer(target_size=target_size, max_size=max_size, use_origin_size=use_origin_size)
 
     img = cv2.imread(args.img_path)
-    _, _, output, vis_img = face_enhancer.enhance(img, has_aligned=False, only_center_face=False, paste_back=True)
+    # _, _, output, vis_img = face_enhancer.enhance(img, has_aligned=False, only_center_face=False, paste_back=True)
+    vis_img = face_enhancer.get_face_parsing(img)
     cv2.imwrite(args.save_path, vis_img)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--img_path', type=str, default='/mnt/ec-data2/ivs/1080p/zyh/hdr_dirty_face/png/select/SDR2822_709-0227.png')
-    parser.add_argument('--save_path', type=str, default='/data/yh/FACE_2024/facexlib/result/SDR2822_709-0227_parsing.png')
+    parser.add_argument('--save_path', type=str, default='/data/yh/FACE_2024/facexlib/result/SDR2822_709-0227_parsing_no_align.png')
     parser.add_argument(
         '--model_name', type=str, default='retinaface_resnet50', help='retinaface_resnet50 | retinaface_mobile0.25')
     parser.add_argument('--half', action='store_true')

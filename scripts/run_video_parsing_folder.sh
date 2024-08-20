@@ -3,5 +3,6 @@ output=/mnt/ec-data2/ivs/1080p/zyh/face_detection_res/testset1_res_2
 mkdir -p $output
 for file in `ls $input`
 do 
-python ../inference/video_inference_detection.py --video_path $input/$file --save_path $output/${file%.*}_det.mp4 --qp 20
+python ../inference/video_inference_parsing.py --video_path $input/$file --save_path $output/${file%.*}_par.mp4 --qp 20
+# break
 done
