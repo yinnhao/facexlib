@@ -38,9 +38,9 @@ if __name__ == '__main__':
         '--model_name', type=str, default='retinaface_resnet50', help='retinaface_resnet50 | retinaface_mobile0.25')
     parser.add_argument('--half', action='store_true')
     parser.add_argument('--output_txt', action='store_true')
-    parser.add_argument('--target_size', type=int, default=1600)
-    parser.add_argument('--max_size', type=int, default=2150)
-    parser.add_argument('--use_origin_size', action='store_true')
+    parser.add_argument('--target_size', type=int, default=1600, help='target size for input image to resize')
+    parser.add_argument('--max_size', type=int, default=2150, help='max size for input image to resize')
+    parser.add_argument('--use_origin_size', action='store_true', help='use origin size to detect faces')
     args = parser.parse_args()
 
     main(args)

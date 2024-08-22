@@ -63,7 +63,7 @@ This project is released under the MIT license. <br>
 If you have any question, open an issue or email `xintao.wang@outlook.com`.
 
 
-### 推理命令行
+## 原代码库的推理命令行
 ```shell
 # 1. detection
 python inference_detection.py --img_path /mnt/ec-data2/ivs/1080p/zyh/testset/sr/yuexia_src/yuexia3_madong_face.png --save_path /data/yh/FACE_2024/facexlib/result/yuexia3_madong_face_detect.png
@@ -78,8 +78,77 @@ python inference_parsing.py --input /data/yh/FACE_2024/facexlib/result/yuexia3_m
 python inference_parsing_parsenet.py --input /data/yh/FACE_2024/facexlib/result/yuexia3_madong_face_cvwarp_00.png --output /data/yh/FACE_2024/facexlib/result
 ```
 
-### 视频推理命令行
+## 自定义接口命令行
+
+### 图片推理命令
+
+#### 1. 人脸检测
 ```shell
-# 1. detection
+python inference/inference_detection.py --img_path /mnt/ec-data2/ivs/1080p/zyh/testset/sr/yuexia_src/yuexia3_madong_face.png --save_path /data/yh/FACE_2024/facexlib/result/yuexia3_madong_face_detect.png --half --output_txt --target_size 512 --max_size 1024
+```
+参数介绍：
+- `--half`：是否使用half精度
+- `--output_txt`：是否输出txt文件， txt文件与图片同名，内容为检测到的人脸信息，每一行为一个人脸的信息，包括人脸的置信度和坐标，坐标为左上角和右下角的坐标，例如'face 1.0 937 185 1150 467'
+- `--target_size`：将图像的短边缩放到的目标大小
+- `--max_size`：缩放后的最大尺寸，如果缩放完之后，图像的长边大于max_size，则再次将其缩放到max_size
+如果不缩放需要使用'--use_origin_size'参数
+
+脚本：scripts/run_detection_folder.sh
+
+#### 2. 人脸分割（使用face detection + face parsing）
+```shell
+python inference/face_process.py --img_path /mnt/ec-data2/ivs/1080p/zyh/testset/sr/yuexia_src/yuexia3_madong_face.png --save_path /data/yh/FACE_2024/facexlib/result/yuexia3_madong_face_parsing.jpg --half --output_txt --target_size 512 --max_size 1024 --task parsing
+```
+
+使用`inference/face_process.py`， 指定`--task`为`parsing`
+
+脚本：scripts/run_parsing_folder.sh
+
+#### 3. 皮肤分割 （使用face detection + face parsing, 19类区域，1号区域就是皮肤）
+
+```shell
+python inference/face_process.py --img_path /mnt/ec-data2/ivs/1080p/zyh/testset/sr/yuexia_src/yuexia3_madong_face.png --save_path /data/yh/FACE_2024/facexlib/result/yuexia3_madong_face_skin.jpg --half --output_txt --target_size 512 --max_size 1024 --task skin
+```
+
+使用`inference/face_process.py`, 指定`--task`为`skin`
+
+脚本：scripts/run_skin_folder.sh
+
+
+#### 4. 人脸增强（face detection + face parsing）
+
+```shell
+python inference/face_process.py --img_path /mnt/ec-data2/ivs/1080p/zyh/testset/sr/yuexia_src/yuexia3_madong_face.png --save_path /data/yh/FACE_2024/facexlib/result/yuexia3_madong_face_enhance.png --half --output_txt --target_size 512 --max_size 1024 --task enhance
+```
+使用`inference/face_process.py`, 指定`--task`为`enhance`
+
+脚本：scripts/run_enhance_folder.sh
+
+
+### 视频推理命令行
+
+#### 1. 人脸检测
+```shell
+
 python video_inference_detection.py --video_path SDR0357_709_1s.mp4 --save_path SDR0357_709_1s_res.mp4
 ```
+
+
+#### 2. 人脸分割（使用face detection + face parsing）
+```shell
+python inference/video_face_process.py --video_path /mnt/ec-data2/ivs/1080p/zyh/hdr_dirty_face/sdr/jialin/SDR2822_709.mp4 --save_path /mnt/ec-data2/ivs/1080p/zyh/SDR2822_709_parsing.mp4 --task parsing --qp 20
+```
+
+#### 3. 皮肤分割 （使用face detection + face parsing, 19类区域，1号区域就是皮肤）
+
+```shell
+python inference/video_face_process.py --video_path /mnt/ec-data2/ivs/1080p/zyh/hdr_dirty_face/sdr/jialin/SDR2822_709.mp4 --save_path /mnt/ec-data2/ivs/1080p/zyh/SDR2822_709_skin.mp4 --task skin --qp 20
+```
+
+#### 4. 人脸增强（face detection + face parsing）
+
+```shell
+python inference/video_face_process.py --video_path /mnt/ec-data2/ivs/1080p/zyh/hdr_dirty_face/sdr/jialin/SDR2822_709.mp4 --save_path /mnt/ec-data2/ivs/1080p/zyh/SDR2822_709_enhance.mp4 --task enhance --qp 12
+```
+
+人脸分割、皮肤分割和人脸增强都是使用的`video_face_process.py`, 通过--task指定

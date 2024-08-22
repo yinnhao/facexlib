@@ -96,6 +96,7 @@ class FaceRestoreHelper(object):
         self.pad_input_imgs = []
         self.face_masks = []
         self.det_faces_enlarge = []
+        self.skin_masks = []
 
         if device is None:
             self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -203,7 +204,7 @@ class FaceRestoreHelper(object):
             box = box.astype(int)
             self.det_faces_enlarge.append(box)
 
-    def get_face_parsing(self, soft_mask=False):
+    def get_face_parsing(self, soft_mask=False, mask_type="face_mask"):
         input_img = self.input_img
         h, w = input_img.shape[:2]
         for face_id, cropped_face in enumerate(self.cropped_faces):
@@ -218,13 +219,18 @@ class FaceRestoreHelper(object):
                 out = out.argmax(dim=1).squeeze().cpu().numpy()
 
                 mask = np.zeros(out.shape)
-                MASK_COLORMAP = [0, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 0, 255, 0, 0, 0]
+                if mask_type == "face_mask":
+                    MASK_COLORMAP = [0, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 0, 255, 0, 0, 0]
+                elif mask_type == "skin_mask":
+                    MASK_COLORMAP = [0] * 19
+                    MASK_COLORMAP[1] = 255
                 for idx, color in enumerate(MASK_COLORMAP):
                     mask[out == idx] = color
                 if soft_mask:
                     #  blur the mask
-                    mask = cv2.GaussianBlur(mask, (101, 101), 11)
-                    mask = cv2.GaussianBlur(mask, (101, 101), 11)
+                    # mask = cv2.GaussianBlur(mask, (101, 101), 11)
+                    # mask = cv2.GaussianBlur(mask, (101, 101), 11)
+                    mask = cv2.GaussianBlur(mask, (5, 5), 11)
                 # remove the black borders
                 # thres = 10
                 # mask[:thres, :] = 0
@@ -234,11 +240,14 @@ class FaceRestoreHelper(object):
                 mask = mask / 255.
                 # cv2.imwrite('/data/yh/FACE_2024/facexlib/result/mask_small.png', (mask * 255).astype(np.uint8))
                 mask = cv2.resize(mask, (cropped_face.shape[1], cropped_face.shape[0]))
-                # cv2.imwrite('/data/yh/FACE_2024/facexlib/result/mask.png', (mask * 255).astype(np.uint8))
+                # cv2.imwrite('/data/yh/FACE_2024/facexlib/result/mask_origin.png', (mask * 255).astype(np.uint8))
                 box = self.det_faces_enlarge[face_id]
                 big_mask[int(box[1]):int(box[3]), int(box[0]):int(box[2])] = mask[:, :]
                 # inv_soft_mask = mask[:, :, None]
-                self.face_masks.append(big_mask)
+                if mask_type == "face_mask":
+                    self.face_masks.append(big_mask)
+                elif mask_type == "skin_mask":
+                    self.skin_masks.append(big_mask)
 
 
 
@@ -401,10 +410,15 @@ class FaceRestoreHelper(object):
     def add_restored_face(self, face):
         self.restored_faces.append(face)
 
-    def paste_masks_to_input_image(self, draw_box=False):
+    def paste_masks_to_input_image(self, draw_box=False, mask_type="face_mask"):
         input_img = self.input_img
         vis_mask = input_img.copy()
-        for mask in self.face_masks:
+        if mask_type == "face_mask":
+            masks = self.face_masks
+        elif mask_type == "skin_mask":
+            masks = self.skin_masks
+
+        for mask in masks:
             mask = np.round(mask * 255).astype(np.uint8)
             index = np.where(mask == 255)
             vis_mask[index[0], index[1], :] = [255, 144, 30]
@@ -420,6 +434,16 @@ class FaceRestoreHelper(object):
                 cv2.rectangle(vis_img, (box[0], box[1]), (box[2], box[3]), (0, 0, 255), 2)
         # cv2.imwrite('/data/yh/FACE_2024/facexlib/result/vis_mask.png', vis_img)
         return vis_img
+
+    def paste_restore_faces(self):
+        upsample_img = self.input_img
+        face_pad = upsample_img.copy()
+        for box, mask, face in zip(self.det_faces_enlarge, self.face_masks, self.restored_faces):
+            face_pad[int(box[1]):int(box[3]), int(box[0]):int(box[2]), :] = face[:, :, :]
+            mask = np.expand_dims(mask, 2)
+            upsample_img = mask * face_pad + (1 - mask) * upsample_img
+        upsample_img = upsample_img.astype(np.uint8)
+        return upsample_img
 
     def paste_faces_to_input_image(self, save_path=None, upsample_img=None, soft_mask=True):
         h, w, _ = self.input_img.shape
@@ -520,4 +544,5 @@ class FaceRestoreHelper(object):
         self.pad_input_imgs = []
         self.det_faces_enlarge = []
         self.face_masks = []
+        self.skin_masks = []
         
