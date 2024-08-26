@@ -124,6 +124,11 @@ python inference/face_process.py --img_path /mnt/ec-data2/ivs/1080p/zyh/testset/
 
 脚本：scripts/run_enhance_folder.sh
 
+#### 5. 人脸对比度分析 （使用face detection + face parsing）
+
+```shell
+python inference/face_process.py --img_path /mnt/ec-data2/ivs/1080p/zyh/testset/sr/yuexia_src/yuexia3_madong_face.png --save_path /data/yh/FACE_2024/facexlib/result/yuexia3_madong_face_analyze.png --half --output_txt --target_size 512 --max_size 1024 --task analyze
+```
 
 ### 视频推理命令行
 

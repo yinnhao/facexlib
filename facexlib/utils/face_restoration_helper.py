@@ -7,7 +7,7 @@ from torchvision.transforms.functional import normalize
 from facexlib.detection import init_detection_model
 from facexlib.parsing import init_parsing_model
 from facexlib.utils.misc import img2tensor, imwrite
-
+import matplotlib.pyplot as plt
 
 def get_largest_face(det_faces, h, w):
 
@@ -97,6 +97,7 @@ class FaceRestoreHelper(object):
         self.face_masks = []
         self.det_faces_enlarge = []
         self.skin_masks = []
+        self.face_hists = []
 
         if device is None:
             self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -410,7 +411,38 @@ class FaceRestoreHelper(object):
     def add_restored_face(self, face):
         self.restored_faces.append(face)
 
-    def paste_masks_to_input_image(self, draw_box=False, mask_type="face_mask"):
+    def draw_res_to_input_image(self, draw_box=False, draw_mask=False, mask_type="face_mask", draw_hist=False, draw_contrast=False):
+        def plt2cv(hist):
+            '''
+            将 matplotlib 绘制的图像转换为 OpenCV 可用的格式
+            :param hist: 直方图数据
+            '''
+            plt.figure()
+            plt.title("Brightness Histogram")
+            plt.xlabel("Brightness Value")
+            plt.ylabel("Pixel Count")
+            plt.bar(range(256), hist, width=1.0, color='black')
+            plt.xlim([0, 256])
+            plt.draw()
+            waveform_img = np.frombuffer(plt.gcf().canvas.tostring_rgb(), dtype=np.uint8)
+            waveform_img = waveform_img.reshape(plt.gcf().canvas.get_width_height()[::-1] + (3,))
+            plt.close()
+            return waveform_img
+        
+        def calculate_percentile_values(hist, lower_percentile=1, upper_percentile=99):
+            '''
+            从直方图中计算亮度值的 1% 和 99% 分位点
+            '''
+            # 计算累积直方图（CDF）
+            cdf = hist.cumsum()
+            cdf_normalized = cdf / cdf.max()  # 归一化 CDF
+
+            # 获取 1% 和 99% 分位点的亮度值
+            lower_value = np.searchsorted(cdf_normalized, lower_percentile / 100.0)
+            upper_value = np.searchsorted(cdf_normalized, upper_percentile / 100.0)
+
+            return lower_value, upper_value
+        
         input_img = self.input_img
         vis_mask = input_img.copy()
         if mask_type == "face_mask":
@@ -418,22 +450,74 @@ class FaceRestoreHelper(object):
         elif mask_type == "skin_mask":
             masks = self.skin_masks
 
-        for mask in masks:
-            mask = np.round(mask * 255).astype(np.uint8)
-            index = np.where(mask == 255)
-            vis_mask[index[0], index[1], :] = [255, 144, 30]
+        face_nums = len(masks)
+        # 如果需要绘制 mask，则将 mask 绘制到 vis_img 上
+        if draw_mask:
+            for i in range(face_nums):
+                # draw mask
+                mask = masks[i]
+                mask = np.round(mask * 255).astype(np.uint8)
+                index = np.where(mask == 255)
+                vis_mask[index[0], index[1], :] = [255, 144, 30]
+            
+            # add mask to origin img
+            vis_img = cv2.addWeighted(input_img, 0.4, vis_mask, 0.6, 0)
+        else:
+            vis_img = input_img.copy()
 
-        vis_img = cv2.addWeighted(input_img, 0.4, vis_mask, 0.6, 0)
-        if draw_box:
-            for box in self.det_faces:
-                box = box.astype(int)
+        for i in range(face_nums):
+            # draw box
+            if draw_box:
+                box = self.det_faces[i].astype(int)
                 cv2.rectangle(vis_img, (box[0], box[1]), (box[2], box[3]), (0, 255, 0), 2)
-
-            for box in self.det_faces_enlarge:
-                box = box.astype(int)
-                cv2.rectangle(vis_img, (box[0], box[1]), (box[2], box[3]), (0, 0, 255), 2)
-        # cv2.imwrite('/data/yh/FACE_2024/facexlib/result/vis_mask.png', vis_img)
+                box_enlarge = self.det_faces_enlarge[i].astype(int)
+                cv2.rectangle(vis_img, (box_enlarge[0], box_enlarge[1]), (box_enlarge[2], box_enlarge[3]), (0, 0, 255), 2)
+            # draw hist
+            if draw_hist:
+                # 获取直方图
+                hist = self.face_hists[i]
+                hist_np = plt2cv(hist)
+                # print(hist_np.shape)
+                # print(vis_img.shape)
+                hist_h, hist_w, _ = hist_np.shape
+                base_h, base_w, _ = vis_img.shape
+                # 将直方图绘制到 vis_img 上。位置为 box 的左下角
+                box = self.det_faces[i].astype(int)
+                x, y = (box[0], box[3])
+                if y + hist_h > base_h or x + hist_w > base_w:
+                    y = base_h - hist_h
+                    x = base_w - hist_w
+                vis_img[y:y + hist_h, x:x + hist_w, :] = cv2.addWeighted(vis_img[y:y + hist_h, x:x + hist_w, :], 0.4, hist_np, 0.6, 0)
+            # 将对比度信息写在图像上进行可视化：1% 和 99% 分位点，以及亮度范围
+            if draw_contrast:
+                low_value, up_value = calculate_percentile_values(hist)
+                text_lower = f"1% Percentile: {low_value}"
+                text_upper = f"99% Percentile: {up_value}"
+                text_range = f"Range: {up_value - low_value + 1}"
+                # 在图像上绘制文本
+                x, y = box[0], box[1]
+                cv2.putText(vis_img, text_lower, (x, y+40), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
+                cv2.putText(vis_img, text_upper, (x, y+70), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
+                cv2.putText(vis_img, text_range, (x, y+100), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
+                
         return vis_img
+
+    def get_face_histogram(self, mask_type='face_mask'):
+        '''
+        获取face区域的直方图，并保存下来
+        '''
+        input_img = self.input_img
+        if mask_type == "face_mask":
+            masks = self.face_masks
+        elif mask_type == "skin_mask":
+            masks = self.skin_masks
+        for mask in masks:
+            mask = mask.astype(np.uint8)
+            gray_image = cv2.cvtColor(input_img, cv2.COLOR_BGR2GRAY)
+            hist = cv2.calcHist([gray_image], [0], mask, [256], [0, 256])
+            hist = hist.flatten()  # 将直方图转换为一维数组
+            self.face_hists.append(hist)
+    
 
     def paste_restore_faces(self):
         upsample_img = self.input_img
@@ -545,4 +629,5 @@ class FaceRestoreHelper(object):
         self.det_faces_enlarge = []
         self.face_masks = []
         self.skin_masks = []
+        self.face_hists = []
         

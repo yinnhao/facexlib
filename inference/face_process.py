@@ -40,9 +40,7 @@ class FaceEnhancer():
             target_size=target_size, 
             max_size=max_size, 
             use_origin_size=use_origin_size)
-        
-        # model = RRDBNet(num_in_ch=3, num_out_ch=3, num_feat=64, num_block=23, num_grow_ch=32, scale=1)
-        # netscale = 1
+
         if enhance_model:
             self.face_enhancer = RealESRGANer(
                 scale=1,
@@ -103,7 +101,7 @@ class FaceEnhancer():
         self.face_helper.get_face_enlarge()
         self.face_helper.get_crop_face()
         self.face_helper.get_face_parsing(mask_type=mask_type)
-        vis_img = self.face_helper.paste_masks_to_input_image(draw_box=True, mask_type=mask_type)
+        vis_img = self.face_helper.draw_res_to_input_image(draw_box=True, mask_type=mask_type)
         return vis_img  
     
     @torch.no_grad()
@@ -119,6 +117,18 @@ class FaceEnhancer():
             self.face_helper.add_restored_face(restore_crop_face)
         enhanced_res = self.face_helper.paste_restore_faces()
         return enhanced_res
+    
+    def analyze_face(self, img, mask_type='face_mask'):
+        self.face_helper.clean_all()
+        self.face_helper.read_image(img)
+        self.face_helper.get_face_boxs(only_center_face=False, eye_dist_threshold=5)
+        self.face_helper.get_face_enlarge()
+        self.face_helper.get_crop_face()
+        self.face_helper.get_face_parsing(mask_type=mask_type)
+        self.face_helper.get_face_histogram(mask_type=mask_type)
+        vis_img = self.face_helper.draw_res_to_input_image(draw_box=True, draw_mask=False, mask_type=mask_type, draw_hist=True, draw_contrast=True)
+        return vis_img 
+
 
 def main(args):
     # initialize model
@@ -145,12 +155,16 @@ def main(args):
         face_enhancer = FaceEnhancer(target_size=target_size, max_size=max_size, use_origin_size=use_origin_size)
         vis_img = face_enhancer.get_face_parsing(img, mask_type='skin_mask')
     
+    elif task == 'analyze':
+        face_enhancer = FaceEnhancer(target_size=target_size, max_size=max_size, use_origin_size=use_origin_size)
+        vis_img = face_enhancer.analyze_face(img, mask_type='skin_mask')
+    
     cv2.imwrite(args.save_path, vis_img)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--img_path', type=str, default='/mnt/ec-data2/ivs/1080p/zyh/hdr_dirty_face/png/select/SDR2822_709-0227.png')
-    parser.add_argument('--save_path', type=str, default='/data/yh/FACE_2024/facexlib/result/SDR2822_709-0227_skin.png')
+    parser.add_argument('--save_path', type=str, default='/data/yh/FACE_2024/facexlib/result/SDR2822_709-0227_skin_analyze.png')
     parser.add_argument(
         '--model_name', type=str, default='retinaface_resnet50', help='retinaface_resnet50 | retinaface_mobile0.25')
     parser.add_argument('--half', action='store_true')
@@ -158,7 +172,7 @@ if __name__ == '__main__':
     parser.add_argument('--target_size', type=int, default=512)
     parser.add_argument('--max_size', type=int, default=1024)
     parser.add_argument('--use_origin_size', action='store_true')
-    parser.add_argument('--task', type=str, default='parsing', help='parsing | detection | enhance | skin')
+    parser.add_argument('--task', type=str, default='parsing', help='parsing | detection | enhance | skin | analyze')
     args = parser.parse_args()
 
     main(args)
