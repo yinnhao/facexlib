@@ -130,6 +130,11 @@ python inference/face_process.py --img_path /mnt/ec-data2/ivs/1080p/zyh/testset/
 python inference/face_process.py --img_path /mnt/ec-data2/ivs/1080p/zyh/testset/sr/yuexia_src/yuexia3_madong_face.png --save_path /data/yh/FACE_2024/facexlib/result/yuexia3_madong_face_analyze.png --half --output_txt --target_size 512 --max_size 1024 --task analyze
 ```
 
+#### 6. 传统算法肤色检测 （face detection + 传统肤色检测）
+```shell
+python inference/face_process.py --img_path /mnt/ec-data2/ivs/1080p/zyh/testset/sr/yuexia_src/yuexia3_madong_face.png --save_path /data/yh/FACE_2024/facexlib/result/yuexia3_madong_face_analyze.png --half --output_txt --target_size 512 --max_size 1024 --task traditional_skin
+```
+
 ### 视频推理命令行
 
 #### 1. 人脸检测
@@ -156,4 +161,10 @@ python inference/video_face_process.py --video_path /mnt/ec-data2/ivs/1080p/zyh/
 python inference/video_face_process.py --video_path /mnt/ec-data2/ivs/1080p/zyh/hdr_dirty_face/sdr/jialin/SDR2822_709.mp4 --save_path /mnt/ec-data2/ivs/1080p/zyh/SDR2822_709_enhance.mp4 --task enhance --qp 12
 ```
 
-人脸分割、皮肤分割和人脸增强都是使用的`video_face_process.py`, 通过--task指定
+#### 5. 人脸对比度分析
+
+```shell
+python inference/video_face_process.py --video_path /mnt/ec-data2/ivs/1080p/zyh/hdr_dirty_face/sdr/jialin/SDR2822_709.mp4 --save_path /mnt/ec-data2/ivs/1080p/zyh/SDR2822_709_enhance.mp4 --qp 20 --task analyze
+```
+
+人脸分割、皮肤分割、人脸增强和人脸对比度分析都是使用的`video_face_process.py`, 通过--task指定

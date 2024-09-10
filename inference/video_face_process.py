@@ -54,7 +54,9 @@ class FaceInfer(video_infer):
         elif self.task == 'skin':
             face_enhancer = FaceEnhancer(target_size=target_size, max_size=max_size, use_origin_size=use_origin_size)
             vis_img = face_enhancer.get_face_parsing(y, mask_type='skin_mask')
-
+        elif self.task == 'analyze':
+            face_enhancer = FaceEnhancer(target_size=target_size, max_size=max_size, use_origin_size=use_origin_size)
+            vis_img = face_enhancer.analyze_face(y, mask_type='skin_mask')
         else:
             raise ValueError("task should be one of 'enhance', 'parsing', 'skin'")
 
@@ -77,7 +79,7 @@ if __name__ == '__main__':
     parser.add_argument('--target_size', type=int, default=512)
     parser.add_argument('--max_size', type=int, default=1024)
     parser.add_argument('--use_origin_size', action='store_true')
-    parser.add_argument('--task', type=str, default='parsing', help='enhance | parsing | skin')
+    parser.add_argument('--task', type=str, default='parsing', help='enhance | parsing | skin | analyze')
     # 解析命令行参数
     args = parser.parse_args()
 

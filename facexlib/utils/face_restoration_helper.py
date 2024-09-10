@@ -7,6 +7,7 @@ from torchvision.transforms.functional import normalize
 from facexlib.detection import init_detection_model
 from facexlib.parsing import init_parsing_model
 from facexlib.utils.misc import img2tensor, imwrite
+from facexlib.utils.tra_skin_detect_numpy import skin_detect_vectorized
 import matplotlib.pyplot as plt
 
 def get_largest_face(det_faces, h, w):
@@ -205,39 +206,45 @@ class FaceRestoreHelper(object):
             box = box.astype(int)
             self.det_faces_enlarge.append(box)
 
-    def get_face_parsing(self, soft_mask=False, mask_type="face_mask"):
+    def get_face_parsing(self, soft_mask=False, mask_type="face_mask", parsing_method='bisenet'):
+        '''
+        功能:获取人脸的分割mask
+        soft_mask: 是否对mask进行高斯模糊处理，使得边界变得模糊
+        mask_type: face_mask (完整的人脸) or skin_mask (皮肤区域, 不包括眼睛、嘴巴、鼻子)
+        parsing_method: bisenet or traditional [传统的肤色检测方法(在RGB空间根据一些颜色特征)]
+        
+        '''
         input_img = self.input_img
         h, w = input_img.shape[:2]
         for face_id, cropped_face in enumerate(self.cropped_faces):
                 big_mask = np.zeros(input_img.shape[:2])
                 
                 face_input = cv2.resize(cropped_face, (512, 512), interpolation=cv2.INTER_LINEAR)
-                face_input = img2tensor(face_input.astype('float32') / 255., bgr2rgb=True, float32=True)
-                normalize(face_input, (0.5, 0.5, 0.5), (0.5, 0.5, 0.5), inplace=True)
-                face_input = torch.unsqueeze(face_input, 0).to(self.device)
-                with torch.no_grad():
-                    out = self.face_parse(face_input)[0]
-                out = out.argmax(dim=1).squeeze().cpu().numpy()
+                if parsing_method == 'bisenet':
+                    face_input = img2tensor(face_input.astype('float32') / 255., bgr2rgb=True, float32=True)
+                    normalize(face_input, (0.5, 0.5, 0.5), (0.5, 0.5, 0.5), inplace=True)
+                    face_input = torch.unsqueeze(face_input, 0).to(self.device)
+                    with torch.no_grad():
+                        out = self.face_parse(face_input)[0]
+                    out = out.argmax(dim=1).squeeze().cpu().numpy()
 
-                mask = np.zeros(out.shape)
-                if mask_type == "face_mask":
-                    MASK_COLORMAP = [0, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 0, 255, 0, 0, 0]
-                elif mask_type == "skin_mask":
-                    MASK_COLORMAP = [0] * 19
-                    MASK_COLORMAP[1] = 255
-                for idx, color in enumerate(MASK_COLORMAP):
-                    mask[out == idx] = color
-                if soft_mask:
-                    #  blur the mask
-                    # mask = cv2.GaussianBlur(mask, (101, 101), 11)
-                    # mask = cv2.GaussianBlur(mask, (101, 101), 11)
-                    mask = cv2.GaussianBlur(mask, (5, 5), 11)
-                # remove the black borders
-                # thres = 10
-                # mask[:thres, :] = 0
-                # mask[-thres:, :] = 0
-                # mask[:, :thres] = 0
-                # mask[:, -thres:] = 0
+                    mask = np.zeros(out.shape)
+                    if mask_type == "face_mask":
+                        MASK_COLORMAP = [0, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 0, 255, 0, 0, 0]
+                    elif mask_type == "skin_mask":
+                        MASK_COLORMAP = [0] * 19
+                        MASK_COLORMAP[1] = 255
+                    for idx, color in enumerate(MASK_COLORMAP):
+                        mask[out == idx] = color
+                    if soft_mask:
+                        #  blur the mask
+                        # mask = cv2.GaussianBlur(mask, (101, 101), 11)
+                        # mask = cv2.GaussianBlur(mask, (101, 101), 11)
+                        mask = cv2.GaussianBlur(mask, (5, 5), 11)
+
+                elif parsing_method == 'traditional':
+                    mask = skin_detect_vectorized(face_input)
+                    
                 mask = mask / 255.
                 # cv2.imwrite('/data/yh/FACE_2024/facexlib/result/mask_small.png', (mask * 255).astype(np.uint8))
                 mask = cv2.resize(mask, (cropped_face.shape[1], cropped_face.shape[0]))
@@ -435,7 +442,7 @@ class FaceRestoreHelper(object):
             '''
             # 计算累积直方图（CDF）
             cdf = hist.cumsum()
-            cdf_normalized = cdf / cdf.max()  # 归一化 CDF
+            cdf_normalized = cdf / (cdf.max() + 1e-8)  # 归一化 CDF
 
             # 获取 1% 和 99% 分位点的亮度值
             lower_value = np.searchsorted(cdf_normalized, lower_percentile / 100.0)

@@ -1,15 +1,20 @@
 import cv2
 import os
+import argparse
 import torch
 import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from torchvision.transforms.functional import normalize
 from basicsr.utils import img2tensor, tensor2img
 from basicsr.utils.download_util import load_file_from_url
+from basicsr.archs.rrdbnet_arch import RRDBNet
 from facexlib.utils.face_restoration_helper import FaceRestoreHelper
 from facexlib.utils.real_esrganer import RealESRGANer
-from torchvision.transforms.functional import normalize
-import argparse
-from basicsr.archs.rrdbnet_arch import RRDBNet
+
+
+
+
+
 # from gfpgan.archs.gfpgan_bilinear_arch import GFPGANBilinear
 # from gfpgan.archs.gfpganv1_arch import GFPGANv1
 # from gfpgan.archs.gfpganv1_clean_arch import GFPGANv1Clean
@@ -94,14 +99,14 @@ class FaceEnhancer():
             return self.face_helper.cropped_faces, self.face_helper.restored_faces, None
         
     @torch.no_grad()
-    def get_face_parsing(self, img, mask_type='face_mask'):
+    def get_face_parsing(self, img, mask_type='face_mask', parsing_method='bisenet'):
         self.face_helper.clean_all()
         self.face_helper.read_image(img)
         self.face_helper.get_face_boxs(only_center_face=False, eye_dist_threshold=5)
         self.face_helper.get_face_enlarge()
         self.face_helper.get_crop_face()
-        self.face_helper.get_face_parsing(mask_type=mask_type)
-        vis_img = self.face_helper.draw_res_to_input_image(draw_box=True, mask_type=mask_type)
+        self.face_helper.get_face_parsing(mask_type=mask_type, parsing_method=parsing_method)
+        vis_img = self.face_helper.draw_res_to_input_image(draw_box=True, mask_type=mask_type, draw_mask=True)
         return vis_img  
     
     @torch.no_grad()
@@ -150,6 +155,10 @@ def main(args):
     elif task == 'parsing':
         face_enhancer = FaceEnhancer(target_size=target_size, max_size=max_size, use_origin_size=use_origin_size)
         vis_img = face_enhancer.get_face_parsing(img, mask_type='face_mask')
+
+    elif task == 'traditional_skin':
+        face_enhancer = FaceEnhancer(target_size=target_size, max_size=max_size, use_origin_size=use_origin_size)
+        vis_img = face_enhancer.get_face_parsing(img, mask_type='skin_mask', parsing_method='traditional')
     
     elif task == 'skin':
         face_enhancer = FaceEnhancer(target_size=target_size, max_size=max_size, use_origin_size=use_origin_size)
@@ -163,8 +172,8 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--img_path', type=str, default='/mnt/ec-data2/ivs/1080p/zyh/hdr_dirty_face/png/select/SDR2822_709-0227.png')
-    parser.add_argument('--save_path', type=str, default='/data/yh/FACE_2024/facexlib/result/SDR2822_709-0227_skin_analyze.png')
+    parser.add_argument('--img_path', type=str, default='/mnt/ec-data2/ivs/1080p/zyh/dataset/face_detection/val_set/img/cftl_no_005_24s.png')
+    parser.add_argument('--save_path', type=str, default='/data/yh/FACE_2024/facexlib/result/SDR2822_709-0227_skin.png')
     parser.add_argument(
         '--model_name', type=str, default='retinaface_resnet50', help='retinaface_resnet50 | retinaface_mobile0.25')
     parser.add_argument('--half', action='store_true')
@@ -172,7 +181,7 @@ if __name__ == '__main__':
     parser.add_argument('--target_size', type=int, default=512)
     parser.add_argument('--max_size', type=int, default=1024)
     parser.add_argument('--use_origin_size', action='store_true')
-    parser.add_argument('--task', type=str, default='parsing', help='parsing | detection | enhance | skin | analyze')
+    parser.add_argument('--task', type=str, default='parsing', help='parsing | detection | enhance | skin | analyze | traditional_skin')
     args = parser.parse_args()
 
     main(args)
